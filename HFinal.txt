@@ -1,0 +1,423 @@
+1.bfs dfs with thread , time complexity and bfs dfs searching
+
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <stack>
+#include <omp.h>
+using namespace std;
+
+vector<vector<int>> graph;
+vector<bool> visited_bfs;
+vector<bool> visited_dfs;
+
+void sequential_bfs(int start) {
+    queue<int> q;
+    vector<bool> visited(graph.size(), false);
+    visited[start] = true;
+    q.push(start);
+
+    while (!q.empty()) {
+        int node = q.front(); q.pop();
+        cout << node << " ";
+        for (int neighbor : graph[node]) {
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                q.push(neighbor);
+            }
+        }
+    }
+}
+
+void parallel_bfs(int start) {
+    queue<int> q;
+    q.push(start);
+    visited_bfs[start] = true;
+
+    cout << "[Parallel BFS Output] ";
+
+    while (!q.empty()) {
+        int node = q.front(); q.pop();
+        cout << node << " ";
+
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                cout << "\nThreads used in this BFS level: " << omp_get_num_threads() << endl;
+            }
+
+            #pragma omp for
+            for (int i = 0; i < graph[node].size(); i++) {
+                int next = graph[node][i];
+                if (!visited_bfs[next]) {
+                    #pragma omp critical
+                    {
+                        if (!visited_bfs[next]) {
+                            visited_bfs[next] = true;
+                            q.push(next);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void sequential_dfs(int start) {
+    stack<int> s;
+    vector<bool> visited(graph.size(), false);
+    s.push(start);
+
+    while (!s.empty()) {
+        int node = s.top(); s.pop();
+        if (!visited[node]) {
+            visited[node] = true;
+            cout << node << " ";
+            for (int i = graph[node].size() - 1; i >= 0; i--) {
+                int neighbor = graph[node][i];
+                if (!visited[neighbor]) {
+                    s.push(neighbor);
+                }
+            }
+        }
+    }
+}
+
+void parallel_dfs(int start) {
+    stack<int> s;
+    s.push(start);
+
+    cout << "[Parallel DFS Output] ";
+
+    while (!s.empty()) {
+        int node = s.top(); s.pop();
+        if (!visited_dfs[node]) {
+            visited_dfs[node] = true;
+            cout << node << " ";
+
+            #pragma omp parallel
+            {
+                #pragma omp single
+                {
+                    cout << "\nThreads used in this DFS level: " << omp_get_num_threads() << endl;
+                }
+
+                #pragma omp for
+                for (int i = graph[node].size() - 1; i >= 0; i--) {
+                    int neighbor = graph[node][i];
+                    if (!visited_dfs[neighbor]) {
+                        #pragma omp critical
+                        s.push(neighbor);
+                    }
+                }
+            }
+        }
+    }
+}
+
+int main() {
+    int nodes, edges;
+    cout << "Enter number of nodes: ";
+    cin >> nodes;
+    cout << "Enter number of edges: ";
+    cin >> edges;
+
+    graph.resize(nodes);
+    visited_bfs.resize(nodes, false);
+    visited_dfs.resize(nodes, false);
+
+    cout << "Enter " << edges << " edges (format: u v):\n";
+    for (int i = 0; i < edges; i++) {
+        int u, v;
+        cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u); // undirected
+    }
+
+    double start_time, end_time;
+
+    cout << "\nSequential BFS: ";
+    start_time = omp_get_wtime();
+    sequential_bfs(0);
+    end_time = omp_get_wtime();
+    cout << "\nTime: " << (end_time - start_time) << " seconds\n";
+
+    cout << "\nParallel BFS: ";
+    start_time = omp_get_wtime();
+    parallel_bfs(0);
+    end_time = omp_get_wtime();
+    cout << "\nTime: " << (end_time - start_time) << " seconds\n";
+
+    cout << "\nSequential DFS: ";
+    start_time = omp_get_wtime();
+    sequential_dfs(0);
+    end_time = omp_get_wtime();
+    cout << "\nTime: " << (end_time - start_time) << " seconds\n";
+
+    cout << "\nParallel DFS: ";
+    start_time = omp_get_wtime();
+    parallel_dfs(0);
+    end_time = omp_get_wtime();
+    cout << "\nTime: " << (end_time - start_time) << " seconds\n";
+
+    return 0;
+}
+
+/* Enter number of nodes: 7
+Enter number of edges: 11
+Enter 11 edges (format: u v):
+0 1
+0 3
+3 1
+3 2
+3 4
+1 2 
+1 6
+1 5
+2 4
+4 6
+2 5 */
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+2. Merge and Bubble Sort
+
+Note :::  as per your convenience change the cout for time complexity 
+
+#include <iostream>
+#include <chrono>
+#include <omp.h>
+#include <cstdlib>
+#include <ctime>
+ 
+using namespace std;
+using namespace std::chrono;
+ 
+// Sequential Bubble Sort
+void bubbleSort(int arr[], int n) {
+    for (int i = 0; i < n - 1; ++i) {
+        for (int j = 0; j < n - i - 1; ++j) {
+            if (arr[j] > arr[j + 1]) {
+                swap(arr[j], arr[j + 1]);
+            }
+        }
+    }
+}
+ 
+// Parallel Bubble Sort
+void parallelBubbleSort(int arr[], int n) {
+    for (int i = 0; i < n; i++) {
+        int start = i % 2;
+#pragma omp parallel for
+        for (int j = start; j < n - 1; j += 2) {
+            if (arr[j] > arr[j + 1]) {
+                swap(arr[j], arr[j + 1]);
+            }
+        }
+    }
+}
+ 
+// Merge function for Merge Sort
+void merge(int arr[], int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+ 
+    int* L = new int[n1];
+    int* R = new int[n2];
+ 
+    for (int i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (int j = 0; j < n2; j++)
+        R[j] = arr[m + 1 + j];
+ 
+    int i = 0, j = 0, k = l;
+    while (i < n1 && j < n2) {
+        arr[k++] = (L[i] <= R[j]) ? L[i++] : R[j++];
+    }
+ 
+    while (i < n1)
+        arr[k++] = L[i++];
+    while (j < n2)
+        arr[k++] = R[j++];
+ 
+    delete[] L;
+    delete[] R;
+}
+ 
+// Sequential Merge Sort
+void mergeSort(int arr[], int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+        merge(arr, l, m, r);
+    }
+}
+ 
+// Parallel Merge Sort
+void parallelMergeSort(int arr[], int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+#pragma omp parallel sections
+        {
+#pragma omp section
+            parallelMergeSort(arr, l, m);
+ 
+#pragma omp section
+            parallelMergeSort(arr, m + 1, r);
+        }
+        merge(arr, l, m, r);
+    }
+}
+ 
+// Print array
+void printArray(int arr[], int size) {
+    for (int i = 0; i < size; ++i)
+        cout << arr[i] << " ";
+    cout << endl;
+}
+ 
+// Random array generation
+void generateRandomArray(int arr[], int n) {
+    for (int i = 0; i < n; ++i) {
+        arr[i] = rand() % 1000;  // Random numbers between 0 and 999
+    }
+}
+ 
+int main() {
+    int n;
+    cout << "Enter the size of the array: ";
+    cin >> n;
+ 
+    srand(time(0));  // Seed for random number generation
+ 
+    int* arr = new int[n];
+    int* original = new int[n];
+ 
+    generateRandomArray(arr, n);
+    for (int i = 0; i < n; ++i) {
+        original[i] = arr[i];
+    }
+ 
+    cout << "\nOriginal array: ";
+    printArray(arr, n);
+ 
+    high_resolution_clock::time_point start, end;
+    duration<double, milli> duration;
+ 
+    // Sequential Bubble Sort
+    for (int i = 0; i < n; ++i)
+        arr[i] = original[i];
+ 
+    start = high_resolution_clock::now();
+    bubbleSort(arr, n);
+    end = high_resolution_clock::now();
+    duration = end - start;
+    cout << "\nSequential Bubble Sorted array: ";
+    printArray(arr, n);
+    cout << "Time taken: " << duration.count() << " milliseconds\n";
+ 
+    // Parallel Bubble Sort
+    for (int i = 0; i < n; ++i)
+        arr[i] = original[i];
+ 
+    start = high_resolution_clock::now();
+    parallelBubbleSort(arr, n);
+    end = high_resolution_clock::now();
+    duration = end - start;
+    cout << "\nParallel Bubble Sorted array: ";
+    printArray(arr, n);
+    cout << "Time taken: " << duration.count() << " milliseconds\n";
+ 
+    // Sequential Merge Sort
+    for (int i = 0; i < n; ++i)
+        arr[i] = original[i];
+ 
+    start = high_resolution_clock::now();
+    mergeSort(arr, 0, n - 1);
+    end = high_resolution_clock::now();
+    duration = end - start;
+    cout << "\nSequential Merge Sorted array: ";
+    printArray(arr, n);
+    cout << "Time taken: " << duration.count() << " milliseconds\n";
+ 
+    // Parallel Merge Sort
+    for (int i = 0; i < n; ++i)
+        arr[i] = original[i];
+ 
+    start = high_resolution_clock::now();
+#pragma omp parallel
+    {
+#pragma omp single
+        {
+            parallelMergeSort(arr, 0, n - 1);
+        }
+    }
+    end = high_resolution_clock::now();
+    duration = end - start;
+    cout << "\nParallel Merge Sorted array: ";
+    printArray(arr, n);
+    cout << "Time taken: " << duration.count() << " milliseconds\n";
+ 
+    // Print the number of threads used in parallel sections
+    int num_threads;
+#pragma omp parallel
+    {
+#pragma omp single
+        {
+            num_threads = omp_get_num_threads();
+        }
+    }
+    cout << "\nNumber of threads used: " << num_threads << endl;
+ 
+    delete[] arr;
+    delete[] original;
+ 
+    return 0;
+}
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+3. Reduction (Min Max)
+
+
+#include <iostream>
+#include <omp.h>
+#include <vector>
+using namespace std;
+
+int main() {
+    const int N = 100000;
+    vector<int> data(N);
+    for (int i = 0; i < N; i++) data[i] = rand() % 100;
+
+    int min_val = data[0], max_val = data[0], sum = 0;
+
+    // Start parallel region and display threads
+    #pragma omp parallel
+    {
+        #pragma omp single
+        cout << "Threads used: " << omp_get_num_threads() << endl;
+    }
+
+    // Parallel reduction for min, max, and sum
+    #pragma omp parallel for reduction(min:min_val) reduction(max:max_val) reduction(+:sum)
+    for (int i = 0; i < N; i++) {
+        if (data[i] < min_val) min_val = data[i];
+        if (data[i] > max_val) max_val = data[i];
+        sum += data[i];
+    }
+
+    cout << "Min: " << min_val << ", Max: " << max_val
+         << ", Sum: " << sum << ", Avg: " << (float)sum / N << endl;
+
+    return 0;
+}
+
